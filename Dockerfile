@@ -27,5 +27,5 @@ COPY . .
 # 7. Instalar las dependencias de tu proyecto
 RUN composer install --optimize-autoloader --no-dev
 
-# 8. Comando de arranque (Migra la base de datos y enciende el servidor)
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
+# 8. Comando de arranque (Limpia caché, migra y enciende el servidor)
+CMD php artisan config:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
