@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     zip \
-    unzip
+    unzip\
     ca-certificates
 
 # 3. Instalar extensiones de PHP para conectar a bases de datos
