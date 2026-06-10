@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip
+    ca-certificates
 
 # 3. Instalar extensiones de PHP para conectar a bases de datos
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
