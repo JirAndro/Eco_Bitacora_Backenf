@@ -16,6 +16,11 @@
             <h2 class="text-success fw-bold">🌿 Dashboard: Eco-Bitácora</h2>
             <p class="text-muted">Centro de control analítico y geoespacial de registros en campo.</p>
         </div>
+        <div class="col-auto">
+            <a href="{{ url('dashboard/exportar') }}" class="btn btn-success shadow-sm fw-bold">
+                📥 Exportar a Excel (.xlsx)
+            </a>
+        </div>
 <div class="row mb-4">
         <div class="col-md-4">
             <div class="card shadow-sm border-0 border-start border-primary border-4">
