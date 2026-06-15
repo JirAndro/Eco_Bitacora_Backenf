@@ -5,58 +5,87 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\RegistroAmbiental;
+use Illuminate\Support\Facades\Http; // <-- MÁGICA LÍNEA PARA HACER PETICIONES HTTP
 use Illuminate\Support\Facades\DB;
 
 class SincronizacionController extends Controller
 {
     public function sincronizar(Request $request)
     {
-        // Validamos que nos envíen un arreglo de registros y un ID de usuario
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'registros' => 'required|array',
-        ]);
-
-        $userId = $request->user_id;
-        $registros = $request->registros;
-        $guardados = 0;
+        $userId = $request->input('user_id');
+        $registros = $request->input('registros', []);
+        $procesados = 0;
 
         DB::beginTransaction();
         try {
-            foreach ($registros as $item) {
-                // updateOrCreate busca por UUID. Si existe, lo actualiza. Si no, lo crea.
+            foreach ($registros as $data) {
+
+                // Variable por defecto por si falla la red o no hay coordenadas
+                $municipioDetectado = 'No registrado';
+
+                // SI EL REGISTRO TIENE COORDENADAS, HACEMOS GEOCODIFICACIÓN INVERSA
+                if (!empty($data['latitud']) && !empty($data['longitud'])) {
+                    try {
+                        // Consultamos de forma segura a OpenStreetMap
+                        // Nota: Nominatim exige un 'User-Agent' identificable para no bloquear la petición
+                        $response = Http::withHeaders([
+                            'User-Agent' => 'EcoBitacoraCIIDIR/1.0 (andro_97@hotmail.com)'
+                        ])->get('https://nominatim.openstreetmap.org/reverse', [
+                            'lat'    => $data['latitud'],
+                            'lon'    => $data['longitud'],
+                            'format' => 'json',
+                            'addressdetails' => 1
+                        ]);
+
+                        if ($response->successful()) {
+                            $resultado = $response->json();
+                            $address = $resultado['address'] ?? [];
+
+                            // Nominatim en México suele guardar el municipio en la clave 'county' o 'municipality'
+                            $municipioDetectado = $address['county'] ?? $address['municipality'] ?? $address['city'] ?? $address['town'] ?? 'Por geolocalizar';
+
+                            // Limpieza estética: "Municipio de Santa Cruz Xoxocotlán" -> "Santa Cruz Xoxocotlán"
+                            $municipioDetectado = str_replace('Municipio de ', '', $municipioDetectado);
+                        }
+                    } catch (\Exception $apiError) {
+                        // Si el servidor de mapas se cae, el sistema no se detiene, continúa con 'Por geolocalizar'
+                        $municipioDetectado = 'Error de red en mapa';
+                    }
+                }
+
+                // GUARDAMOS O ACTUALIZAMOS EL REGISTRO EN TiDB CLOUD ENRIQUECIDO
                 RegistroAmbiental::updateOrCreate(
-                    ['uuid' => $item['uuid']],
+                    ['uuid' => $data['uuid']], // Llave estricta de búsqueda (Idempotencia)
                     [
-                        'user_id' => $userId,
-                        'fecha' => $item['fecha'],
-                        'timestamp' => $item['timestamp'],
-                        'eje' => $item['eje'],
-                        'categoria' => $item['categoria'],
-                        'subcategoria' => $item['subcategoria'] ?? null,
-                        'cantidad' => $item['cantidad'],
-                        'observaciones' => $item['observaciones'] ?? null,
-                        'latitud' => $item['latitud'] ?? null,
-                        'longitud' => $item['longitud'] ?? null,
-                        // El manejo de la foto física se hace en otra ruta, aquí solo guardamos null o un string temporal
-                        'fotoPath' => null,
+                        'user_id'       => $userId,
+                        'fecha'         => $data['fecha'],
+                        'timestamp'     => $data['timestamp'],
+                        'eje'           => $data['eje'],
+                        'categoria'     => $data['categoria'],
+                        'subcategoria'  => $data['subcategoria'],
+                        'cantidad'      => $data['cantidad'],
+                        'observaciones' => $data['observaciones'] ?? null,
+                        'latitud'       => $data['latitud'],
+                        'longitud'      => $data['longitud'],
+                        'municipio'     => $municipioDetectado, // <-- ¡AQUÍ ENTRA EL MUNICIPIO REAL TRADUCIDO!
+                        'sincronizado'  => 1
                     ]
                 );
-                $guardados++;
-            }
-            DB::commit();
 
+                $procesados++;
+            }
+
+            DB::commit();
             return response()->json([
                 'status' => 'success',
-                'message' => "Sincronización exitosa. $guardados registros procesados.",
+                'message' => "Sincronización exitosa. {$procesados} registros procesados."
             ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al sincronizar en la base de datos central.',
-                'error' => $e->getMessage()
+                'message' => 'Falla crítica en el lote: ' . $e->getMessage()
             ], 500);
         }
     }
