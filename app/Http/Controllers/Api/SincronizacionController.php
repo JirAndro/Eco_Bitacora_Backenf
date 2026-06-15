@@ -28,7 +28,7 @@ class SincronizacionController extends Controller
                     try {
                         // Consultamos de forma segura a OpenStreetMap
                         // Nota: Nominatim exige un 'User-Agent' identificable para no bloquear la petición
-                        $response = Http::withHeaders([
+                        $response = Http::withoutVerifying()->withHeaders([
                             'User-Agent' => 'EcoBitacoraCIIDIR/1.0 (andro_97@hotmail.com)'
                         ])->get('https://nominatim.openstreetmap.org/reverse', [
                             'lat'    => $data['latitud'],

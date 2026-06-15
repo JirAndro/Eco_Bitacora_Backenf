@@ -23,7 +23,8 @@ class RegistroAmbiental extends Model
         'observaciones',
         'latitud',
         'longitud',
-        'fotoPath'
+        'fotoPath',
+        'municipio'
     ];
 
     // Relación: Un registro pertenece a un usuario (investigador)
