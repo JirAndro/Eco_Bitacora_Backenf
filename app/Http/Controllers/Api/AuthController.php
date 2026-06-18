@@ -9,28 +9,26 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function registrar(Request $request)
-    {
-        $request->validate([
-            'usuario' => 'required|string',
-            'password' => 'required|string|min:4'
-        ]);
-        $correoSimulado = $request->usuario . '@ciidir.mx';
-        // Verificamos si la matrícula ya está registrada
-        if (User::where('email', $correoSimulado)->exists()) {
-            return response()->json(['error' => 'Esta matrícula/usuario ya está registrada.'], 400);
-        }
-        // Creamos al usuario encriptando la contraseña
-        $user = User::create([
-            'name' => $request->usuario,
-            'email' => $correoSimulado,
-            'password' => Hash::make($request->password),
-        ]);
-        return response()->json([
-            'mensaje' => 'Registro exitoso',
-            'user_id' => $user->id
-        ], 200);
-    }
+public function registrar(Request $request)
+{
+    $request->validate([
+        'usuario' => 'required|string',
+        'email' => 'required|email|unique:users,email', // Validamos que envíe correo y no esté repetido
+        'password' => 'required|string|min:4'
+    ]);
+
+    // Creamos al usuario usando el email real
+    $user = User::create([
+        'name' => $request->usuario,
+        'email' => $request->email, // <-- AHORA USA EL DEL APP
+        'password' => Hash::make($request->password),
+    ]);
+
+    return response()->json([
+        'mensaje' => 'Registro exitoso',
+        'user_id' => $user->id
+    ], 200);
+}
     public function login(Request $request)
     {
         $correoSimulado = $request->usuario . '@ciidir.mx';
