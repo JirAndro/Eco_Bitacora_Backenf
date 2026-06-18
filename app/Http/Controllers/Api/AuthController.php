@@ -23,10 +23,12 @@ public function registrar(Request $request)
         'email' => $request->email, // <-- AHORA USA EL DEL APP
         'password' => Hash::make($request->password),
     ]);
-
+// FABRICAMOS EL TOKEN
+        $token = $user->createToken('auth_token')->plainTextToken;
     return response()->json([
         'mensaje' => 'Registro exitoso',
-        'user_id' => $user->id
+        'user_id' => $user->id,
+        'token' => $token
     ], 200);
 }
     public function login(Request $request)
@@ -37,9 +39,14 @@ public function registrar(Request $request)
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['error' => 'Credenciales inválidas.'], 401);
         }
+
+        // FABRICAMOS EL TOKEN
+        $token = $user->createToken('auth_token')->plainTextToken;
+
         return response()->json([
             'mensaje' => 'Login exitoso',
-            'user_id' => $user->id
+            'user_id' => $user->id,
+            'token' => $token
         ], 200);
     }
 }
